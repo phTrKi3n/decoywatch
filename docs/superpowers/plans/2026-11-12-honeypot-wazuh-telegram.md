@@ -43,7 +43,7 @@ C đọc nhãn từ `rule.description` của hai rule đã duyệt. Kiểm chu�
 | W02 — Telegram | C — macOS | `wazuh/telegram/`. Script, cấu hình mẫu và test với alert giả, có thể làm trước khi lab chung sẵn sàng. |
 | D01 — Nghiệm thu | A điều phối, B và C hỗ trợ | `infra/demo.md`. Cùng commit, hai luồng, số đo và ảnh đã làm sạch. |
 
-Mỗi task có một chủ sở hữu, một phiên agent chỉnh sửa tại một thời điểm và nhánh riêng. B review fixture Cowrie và log firewall của A. C review schema đầu ra của B. B review tích hợp của C. A là người áp cấu hình lên VM chung. Ghi commit gốc và commit bàn giao khi đổi agent. Thay đổi schema, rule ID hoặc IP phải cập nhật trong plan và kiểm lại bên nhận. Sau lần push đầu, dùng PR có review để cập nhật `main`.
+Mỗi task có một chủ sở hữu, một phiên agent chỉnh sửa tại một thời điểm và nhánh riêng. B review fixture Cowrie và log firewall của A. C review schema đầu ra của B. B review tích hợp của C. A là người áp cấu hình lên VM chung. Ghi commit gốc và commit bàn giao khi đổi agent. Thay đổi schema, rule ID hoặc IP phải cập nhật trong plan và kiểm lại bên nhận. Dùng PR từ nhánh công việc vào `test`, rồi từ `test` vào `main` theo [quy trình Git](../../../CONTRIBUTING.md).
 
 ## Checklist nghiệm thu
 

@@ -1,0 +1,36 @@
+# Cấu hình cục bộ và dữ liệu xác thực
+.env
+.env.*
+!.env.example
+secrets.json
+cowrie-telegram.json
+*.key
+*.pem
+*.p12
+*.pfx
+wazuh-install-files.tar
+
+# Dữ liệu chạy lab và máy ảo
+logs/
+captures/
+secrets/
+*.log
+cowrie.json
+alerts.json
+*.pcap
+*.pcapng
+*.ova
+*.ovf
+*.vdi
+*.vmdk
+*.vhdx
+*.qcow2
+*.vbox
+*.vbox-prev
+*.iso
+
+# Cache và metadata của máy phát triển
+__pycache__/
+.venv/
+.DS_Store
+Thumbs.db

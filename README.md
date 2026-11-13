@@ -13,6 +13,7 @@
 ## Bắt đầu
 
 - **Cả nhóm** đọc [kế hoạch triển khai](docs/superpowers/plans/2026-11-12-honeypot-wazuh-telegram.md) để xem phân công, cấu hình mạng, các điểm bàn giao và cách nghiệm thu.
+- **Khi làm việc chung** đọc [quy trình Git](CONTRIBUTING.md) để tạo nhánh, viết commit, mở PR và hoàn tác khi cần.
 - **Agent** đọc [AGENTS.md](AGENTS.md) trước khi chỉnh file. Nếu công cụ không tự nạp file này, người giao việc có thể dùng lời nhắc bên dưới.
 
 ```text

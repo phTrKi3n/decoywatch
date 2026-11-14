@@ -1,0 +1,14 @@
+[Unit]
+Description=Collect and correlate Cowrie lab firewall events
+After=systemd-journald.service nftables.service
+Requires=nftables.service
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/lib/cowrie-lab/firewall.py
+StandardOutput=append:/var/log/cowrie-lab/firewall.json
+NoNewPrivileges=true
+PrivateTmp=true
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

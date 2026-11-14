@@ -16,10 +16,12 @@ Chạy từ checkout trên Ubuntu. Mẫu này thay toàn bộ ruleset, dùng cho
 sudo apt-get install nftables open-vm-tools
 cowrie_uid=$(id -u cowrie)
 test -n "$cowrie_uid" || exit 1
-sed "s/@COWRIE_UID@/$cowrie_uid/g" infra/nftables.conf > /tmp/cowrie-lab.nft
-sudo nft -c -f /tmp/cowrie-lab.nft || exit 1
+rendered=$(mktemp) || exit 1
+trap 'rm -f "$rendered"' EXIT
+sed "s/@COWRIE_UID@/$cowrie_uid/g" infra/nftables.conf > "$rendered" || exit 1
+sudo nft -c -f "$rendered" || exit 1
 sudo cp -an /etc/nftables.conf /etc/nftables.conf.before-cowrie
-sudo install -m 0755 /tmp/cowrie-lab.nft /etc/nftables.conf
+sudo install -m 0755 "$rendered" /etc/nftables.conf
 sudo systemctl enable nftables
 sudo systemctl restart nftables
 printf "%s\n" "net.ipv4.ip_forward = 0" "net.ipv6.conf.all.forwarding = 0" | sudo tee /etc/sysctl.d/90-cowrie-lab.conf >/dev/null

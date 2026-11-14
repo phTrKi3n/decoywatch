@@ -1,6 +1,14 @@
 # Wazuh và tương quan firewall
 
-Cài Wazuh 4.14.10 all-in-one trên VM đã áp [firewall](../infra/README.md). Xem [Wazuh Quickstart](https://documentation.wazuh.com/current/quickstart.html). Installer dòng 4.14 do Wazuh phát hành tại `https://packages.wazuh.com/4.14/wazuh-install.sh`. Trước khi dùng, kiểm phiên bản của bộ cài và đối chiếu [bảng phiên bản](../infra/versions.md). Nếu chạy bản vá khác, chạy lại đầy đủ phép kiểm bên dưới. Giữ gói tài khoản do installer tạo ngoài repo.
+Cài Wazuh 4.14.10 all-in-one trên VM đã áp [firewall](../infra/README.md). Xem [Wazuh Quickstart](https://documentation.wazuh.com/current/quickstart.html). Installer dòng 4.14 do Wazuh phát hành tại `https://packages.wazuh.com/4.14/wazuh-install.sh`. Trước khi dùng, kiểm phiên bản của bộ cài và đối chiếu [bảng phiên bản](../infra/versions.md). Nếu chạy bản vá khác, chạy lại đầy đủ phép kiểm bên dưới. Trên lab, dùng chế độ all-in-one và kiểm phiên bản gói sau khi trình cài đặt hoàn tất. URL theo dòng 4.14 có thể phục vụ bản vá mới hơn.
+
+```sh
+curl --fail --show-error --location --remote-name https://packages.wazuh.com/4.14/wazuh-install.sh
+sudo bash wazuh-install.sh -a
+dpkg-query -W wazuh-manager wazuh-indexer wazuh-dashboard filebeat
+```
+
+Giữ thư mục và gói tài khoản do installer tạo ngoài repo.
 
 ## Thu log và rule
 
@@ -27,6 +35,8 @@ sudo systemctl enable --now cowrie-firewall-events
 sudo systemctl restart wazuh-manager wazuh-dashboard
 sudo systemctl is-active cowrie-firewall-events wazuh-manager wazuh-indexer wazuh-dashboard filebeat
 ```
+
+Bộ gom giữ file output mở trong khi chạy. Khi xoay log bằng cách đổi tên file, khởi động lại bộ gom để mở file mới và kiểm Wazuh vẫn thu được sự kiện.
 
 ## Kiểm thử
 

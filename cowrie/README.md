@@ -30,7 +30,7 @@ sudo systemctl enable --now cowrie-lab
 sudo ss -ltn 'sport = :2222'
 ```
 
-Unit giới hạn Cowrie được ghi trong `/var/lib/cowrie` và dùng thư mục tạm riêng. Cowrie không có Linux capabilities, hệ thống file được bảo vệ và nftables giới hạn lưu lượng theo UID. Giữ quyền quản trị và dịch vụ SIEM riêng với tài khoản Cowrie.
+Unit giới hạn Cowrie được ghi trong `/var/lib/cowrie` và dùng thư mục tạm riêng. Cowrie không có Linux capabilities, hệ thống file được bảo vệ và nftables giới hạn lưu lượng theo UID. Giữ quyền quản trị và dịch vụ SIEM riêng với tài khoản Cowrie. nftables áp giới hạn cho socket IP. Socket Unix vẫn được phép trong unit, vì vậy không cấp quyền truy cập Docker socket, socket quản trị hay dịch vụ chuyển tiếp cục bộ cho Cowrie. Mô hình một VM dùng chung kernel.
 
 ## Nghiệm thu và log
 

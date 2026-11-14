@@ -1,0 +1,82 @@
+#!/usr/bin/python3
+import datetime as dt
+import ipaddress
+import json
+import re
+import sys
+import syslog
+import time
+import urllib.request
+
+CONFIG = "/var/ossec/etc/cowrie-telegram.json"
+EVENTS = {"100110": "cowrie.login.success", "100120": "lab.firewall.scan"}
+
+
+def message(alert):
+    rule = alert["rule"]
+    data = alert["data"]
+    rule_id = str(rule["id"])
+    if rule_id not in EVENTS or data["eventid"] != EVENTS[rule_id]:
+        raise ValueError("unexpected event")
+    label = rule["description"]
+    if not isinstance(label, str) or not 0 < len(label) <= 120 or not label.isprintable():
+        raise ValueError("invalid label")
+    stamp = dt.datetime.fromisoformat(data["timestamp"])
+    if stamp.utcoffset() is None:
+        raise ValueError("missing timezone")
+    stamp = stamp.astimezone(dt.timezone.utc).isoformat()
+    source = ipaddress.ip_address(data["src_ip"])
+    result = f"{label}\nUTC: {stamp}\nNguồn: {source}"
+    if rule_id == "100110":
+        key = data["session"]
+        if data["protocol"] != "ssh" or not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", key):
+            raise ValueError("invalid SSH session")
+        return key, result + f"\nPhiên: {key}"
+
+    target = ipaddress.ip_address(data["dest_ip"])
+    port_count = str(data["port_count"])
+    key = data["event_id"]
+    if not re.fullmatch(r"[0-9]{1,5}", port_count) or not 5 <= int(port_count) <= 65535:
+        raise ValueError("invalid port count")
+    if not re.fullmatch(r"[a-f0-9]{32}", key):
+        raise ValueError("invalid firewall event")
+    if data.get("fixture") in (True, "true", "True"):
+        result = "[MẪU KIỂM THỬ] " + result
+    return key, result + f"\nĐích: {target}\nSố cổng: {int(port_count)}\nID: {key}"
+
+
+def send(token, chat, content):
+    if not re.fullmatch(r"[0-9]+:[a-zA-Z0-9_-]+", token) or not re.fullmatch(r"-?[0-9]+", chat):
+        raise ValueError("invalid bot configuration")
+    payload = json.dumps({"chat_id": chat, "text": content}).encode("utf-8")
+    request = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        if json.load(response).get("ok") is not True:
+            raise ValueError("Bot API rejected alert")
+
+
+def main():
+    try:
+        with open(sys.argv[1], encoding="utf-8") as file:
+            key, content = message(json.load(file))
+        with open(CONFIG, encoding="utf-8-sig") as file:
+            config = json.load(file)
+        started = dt.datetime.now(dt.timezone.utc)
+        timer = time.monotonic()
+        send(config["bot_token"], str(config["chat_id"]), content)
+        finished = dt.datetime.now(dt.timezone.utc)
+        elapsed = (time.monotonic() - timer) * 1000
+        syslog.syslog(syslog.LOG_INFO, f"{key} {started.isoformat()} {finished.isoformat()} {elapsed:.0f}ms")
+        return 0
+    except Exception as error:
+        syslog.syslog(syslog.LOG_ERR, f"send failed: {type(error).__name__}")
+        return 1
+
+
+if __name__ == "__main__":
+    syslog.openlog("cowrie-telegram")
+    sys.exit(main())

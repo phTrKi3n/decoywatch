@@ -1,0 +1,10 @@
+<ossec_config>
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/lib/cowrie/var/log/cowrie/cowrie.json</location>
+  </localfile>
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/cowrie-lab/firewall.json</location>
+  </localfile>
+</ossec_config>

@@ -1,0 +1,3 @@
+{"eventid":"cowrie.login.success","protocol":"ssh","timestamp":"2026-01-01T00:00:00Z","src_ip":"192.0.2.10","session":"fixture-ssh-success"}
+{"eventid":"cowrie.login.failed","protocol":"ssh","timestamp":"2026-01-01T00:00:02Z","src_ip":"192.0.2.10","session":"fixture-ssh-failed"}
+{"eventid":"cowrie.login.success","protocol":"telnet","timestamp":"2026-01-01T00:00:04Z","src_ip":"192.0.2.10","session":"fixture-telnet"}

@@ -10,6 +10,13 @@
 - Xác minh firewall ghi nhận kết nối thử bị chặn trên Host-only. Dùng log mẫu để kiểm tương quan nhiều cổng, rồi đối chiếu cảnh báo Wazuh với Telegram.
 - Đo độ trễ từ sự kiện đủ điều kiện đến phản hồi thành công của Telegram Bot API. Kiểm VM ra Internet qua NAT và Cowrie bị giới hạn quyền.
 
+## Dựng lab và nghiệm thu
+
+1. [VMware và nftables](infra/README.md)
+2. [Cowrie SSH](cowrie/README.md)
+3. [Wazuh và tương quan firewall](wazuh/README.md)
+4. [Kết quả nghiệm thu trên VM chung](infra/demo.md)
+
 ## Bắt đầu
 
 - **Cả nhóm** đọc [kế hoạch triển khai](docs/superpowers/plans/2026-11-12-honeypot-wazuh-telegram.md) để xem phân công, cấu hình mạng, các điểm bàn giao và cách nghiệm thu.

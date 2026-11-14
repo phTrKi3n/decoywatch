@@ -1,0 +1,29 @@
+[Unit]
+Description=Cowrie SSH honeypot for the host-only lab
+Wants=network-online.target
+Requires=nftables.service
+After=network-online.target nftables.service
+
+[Service]
+User=cowrie
+Group=cowrie
+WorkingDirectory=/var/lib/cowrie
+Environment=HOME=/var/lib/cowrie PATH=/opt/cowrie/venv/bin:/usr/bin:/bin
+ExecStart=/opt/cowrie/venv/bin/cowrie start -- -n
+Restart=on-failure
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cowrie
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

@@ -15,7 +15,8 @@
 1. [VMware và nftables](infra/README.md)
 2. [Cowrie SSH](cowrie/README.md)
 3. [Wazuh và tương quan firewall](wazuh/README.md)
-4. [Kết quả nghiệm thu trên VM chung](infra/demo.md)
+4. [Cảnh báo Telegram](wazuh/telegram/README.md)
+5. [Kết quả nghiệm thu trên VM chung](infra/demo.md)
 
 ## Bắt đầu
 

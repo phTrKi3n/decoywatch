@@ -1,0 +1,170 @@
+[
+  {
+    "verdict": "confirmed",
+    "fingerprint": "wazuh-firewall-service-missing-systemd-sandboxing",
+    "title": "Systemd collector unit cowrie-firewall-events.service ran as root without filesystem, network, or capability confinement",
+    "description": "Prior to remediation (commit 666bd0c), wazuh/firewall/cowrie-firewall-events.service ran /usr/bin/python3 /usr/local/lib/cowrie-lab/firewall.py as UID 0 with only NoNewPrivileges=true and PrivateTmp=true. Because journalctl -k reads local journal files and writes only to /var/log/cowrie-lab/firewall.json via StandardOutput=append, leaving root filesystem writable, full Linux capabilities, and AF_INET/AF_INET6 sockets enabled widened blast radius if the parser were ever compromised.",
+    "root_cause": "The [Service] section of wazuh/firewall/cowrie-firewall-events.service omitted ProtectSystem=strict, ProtectHome=true, ReadWritePaths=/var/log/cowrie-lab, PrivateDevices=true, PrivateNetwork=true, RestrictAddressFamilies=AF_UNIX, CapabilityBoundingSet=, and AmbientCapabilities=.",
+    "intended_behavior": "The firewall log collector should run with read-only host filesystem access except /var/log/cowrie-lab, zero Linux capabilities, no network namespace access, and AF_UNIX-only socket creation.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "wazuh/firewall/cowrie-firewall-events.service",
+        "line": 7,
+        "scope": "[Service].ExecStart",
+        "description": "Systemd starts Python collector as root reading kernel journal entries and appending JSON events."
+      },
+      {
+        "kind": "propagation",
+        "file": "wazuh/firewall/firewall.py",
+        "line": 14,
+        "scope": "event",
+        "description": "Collector parses kernel log fields from journalctl stdout in the inherited service security context."
+      },
+      {
+        "kind": "sink",
+        "file": "wazuh/firewall/cowrie-firewall-events.service",
+        "line": 12,
+        "scope": "[Service]",
+        "description": "Without PrivateNetwork=true, ProtectSystem=strict, and empty CapabilityBoundingSet, a compromised worker retains host write and network capabilities."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "wazuh/firewall/cowrie-firewall-events.service",
+        "line": 6,
+        "description": "Commit 666bd0c defined only NoNewPrivileges=true and PrivateTmp=true under [Service]; remediated lines 6-23 add ProtectSystem=strict, PrivateNetwork=true, RestrictAddressFamilies=AF_UNIX, and CapabilityBoundingSet=."
+      },
+      {
+        "file": "wazuh/firewall/firewall.py",
+        "line": 64,
+        "description": "Collector only spawns journalctl -k -f -n 0 -o cat and writes JSON lines to stdout, requiring no network sockets or write access outside /var/log/cowrie-lab."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "Unit runs under systemd with root UID because journald kernel log access is restricted to privileged/journal readers."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Code execution inside the firewall collector service inherits unrestricted capabilities, writable system directories, and host network access.",
+      "payloads": [
+        "git show 666bd0c:wazuh/firewall/cowrie-firewall-events.service"
+      ],
+      "instructions": [
+        "Inspect commit 666bd0c of wazuh/firewall/cowrie-firewall-events.service and compare [Service] directives against cowrie/cowrie-lab.service.",
+        "Check systemd unit sandboxing properties after applying the updated unit with systemd-analyze security cowrie-firewall-events.service."
+      ],
+      "observed_result": "Commit 666bd0c contained only NoNewPrivileges=true and PrivateTmp=true; after deploying the remediated unit on the VM, systemd-analyze security cowrie-firewall-events.service reports 4.1 OK and the service remains active."
+    },
+    "remediation": {
+      "strategy": "Enforce strict systemd filesystem, network, device, kernel, and capability confinement on wazuh/firewall/cowrie-firewall-events.service and redeploy to the VM.",
+      "code_changes": [
+        {
+          "file_name": "wazuh/firewall/cowrie-firewall-events.service",
+          "fixed_code": "[Service]\nExecStart=/usr/bin/python3 /usr/local/lib/cowrie-lab/firewall.py\nStandardOutput=append:/var/log/cowrie-lab/firewall.json\nNoNewPrivileges=true\nPrivateTmp=true\nPrivateNetwork=true\nProtectSystem=strict\nProtectHome=true\nReadWritePaths=/var/log/cowrie-lab\nPrivateDevices=true\nProtectKernelTunables=true\nProtectKernelModules=true\nProtectControlGroups=true\nRestrictAddressFamilies=AF_UNIX\nCapabilityBoundingSet=\nAmbientCapabilities=\nUMask=0027\nRestart=on-failure"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "Input comes from local kernel nftables logs which already validate packet headers, requiring a parser flaw or local log injection."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "Unconfined root execution allows arbitrary host file modification and outbound network access."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Directly verified in git history (666bd0c) and confirmed remediated in the current unit file."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "wazuh-telegram-ip-type-confusion",
+    "title": "Unchecked IP field type allowed JSON booleans and integers to pass ipaddress.ip_address() validation",
+    "description": "Prior to remediation (commit c3d614d), wazuh/telegram/custom-cowrie-telegram passed data[\"src_ip\"] and data[\"dest_ip\"] directly to ipaddress.ip_address(). Because Python's ipaddress.ip_address() accepts int (and bool as a subclass of int), JSON values such as true or 3232235777 were coerced into fabricated IP addresses (0.0.0.1 or 192.168.1.1) and forwarded to Telegram instead of being rejected.",
+    "root_cause": "ipaddress.ip_address() accepts integer inputs in Python, and the original handler did not verify isinstance(value, str) before parsing src_ip and dest_ip.",
+    "intended_behavior": "The alert formatter must accept only valid IPv4/IPv6 string representations for src_ip and dest_ip and raise ValueError for booleans, integers, or malformed strings.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "wazuh/telegram/custom-cowrie-telegram",
+        "line": 53,
+        "scope": "message",
+        "description": "Alert JSON payload is loaded and passed into message(alert) with data[\"src_ip\"] and data[\"dest_ip\"]."
+      },
+      {
+        "kind": "propagation",
+        "file": "wazuh/telegram/custom-cowrie-telegram",
+        "line": 37,
+        "scope": "parse_ip",
+        "description": "Source and destination IP fields flow to parse_ip(value), which previously called ipaddress.ip_address(value) directly."
+      },
+      {
+        "kind": "sink",
+        "file": "wazuh/telegram/custom-cowrie-telegram",
+        "line": 115,
+        "scope": "message",
+        "description": "Coerced IP address string is embedded into the Telegram alert text sent to Bot API."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "wazuh/telegram/custom-cowrie-telegram",
+        "line": 37,
+        "description": "Commit c3d614d lines 28 and 36 called ipaddress.ip_address(...) without isinstance(..., str); remediated parse_ip() at lines 37-40 enforces isinstance(value, str)."
+      },
+      {
+        "file": "wazuh/telegram/test_telegram.py",
+        "line": 66,
+        "description": "test_reject_invalid_fields verifies that src_ip=True, src_ip=2130706433, and dest_ip=3232235777 raise ValueError."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "data_state",
+        "description": "Occurs when a JSON alert object supplies a boolean or integer in data.src_ip or data.dest_ip."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Malformed or spoofed JSON events containing boolean or numeric IP fields bypass IP format checks and emit misleading IPv4 addresses such as 0.0.0.1 in SOC notifications.",
+      "payloads": [
+        "{\"rule\":{\"id\":\"100110\",\"description\":\"Cowrie SSH\"},\"data\":{\"eventid\":\"cowrie.login.success\",\"protocol\":\"ssh\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"src_ip\":true,\"session\":\"s1\"}}"
+      ],
+      "instructions": [
+        "Run python -c \"import ipaddress; print(ipaddress.ip_address(True), ipaddress.ip_address(3232235777))\" to reproduce Python's implicit int/bool coercion.",
+        "Run python wazuh/telegram/test_telegram.py -v to verify the remediated parse_ip() check rejects boolean and integer IP inputs."
+      ],
+      "observed_result": "Before the fix, ipaddress.ip_address(True) returned 0.0.0.1 and ipaddress.ip_address(3232235777) returned 192.168.1.1; after adding parse_ip() with isinstance(value, str), all 6 unit tests in test_telegram.py pass and reject non-string IPs."
+    },
+    "remediation": {
+      "strategy": "Require isinstance(value, str) in parse_ip() before invoking ipaddress.ip_address(), and reject bool values for rule.level and data.port_count.",
+      "code_changes": [
+        {
+          "file_name": "wazuh/telegram/custom-cowrie-telegram",
+          "fixed_code": "def parse_ip(value):\n    if not isinstance(value, str):\n        raise ValueError(\"invalid ip type\")\n    return ipaddress.ip_address(value)"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "Requires an upstream JSON producer or fixture to emit non-string IP fields in Wazuh alerts."
+      },
+      "impact": {
+        "score": "low",
+        "reason": "Produces misleading IP addresses (e.g., 0.0.0.1) in SOC Telegram notifications rather than code execution."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Directly reproduced with Python ipaddress module and verified fixed by unit tests."
+    }
+  }
+]

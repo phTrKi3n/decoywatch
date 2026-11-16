@@ -1,6 +1,6 @@
-# W02 – Telegram
+# W02 – Telegram (SOC Alerting)
 
-Wazuh Integrator chạy script Python 3 khi rule `100110` hoặc `100120` phát cảnh báo. Script gửi văn bản qua Telegram Bot API, dùng trường đã xác thực và giới hạn cho từng rule. Tin firewall tổng hợp có nhãn `[MẪU KIỂM THỬ]`. Telegram chỉ dùng để nhận cảnh báo.
+Wazuh Integrator chạy script Python 3 khi các rule `100110` (đăng nhập SSH thành công), `100112` (vét cạn SSH 5 lần/60s), `100115` (hậu khai thác `command.input` / `session.file_download`) hoặc `100120` (dò quét cổng trên Host-only) phát cảnh báo. Script định dạng tin nhắn theo mẫu SOC (`[SIEM SOC] Mức ... | Rule #...`, ánh xạ MITRE ATT&CK, Sensor, thời gian kép UTC và UTC+07, luồng nguồn/đích, mã phiên/ID và khuyến nghị), kiểm kiểu IP nghiêm ngặt (`isinstance(..., str)`) và tuyệt đối không gửi mật khẩu, lệnh shell thô, URL tải tệp hay token. Tin mẫu gắn tiền tố `[MẪU KIỂM THỬ]`. Telegram chỉ dùng để nhận cảnh báo.
 
 ## Kiểm trước khi áp
 

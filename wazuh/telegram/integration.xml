@@ -1,7 +1,7 @@
 <ossec_config>
   <integration>
     <name>custom-cowrie-telegram</name>
-    <rule_id>100110,100120</rule_id>
+    <rule_id>100110,100112,100115,100120</rule_id>
     <alert_format>json</alert_format>
   </integration>
 </ossec_config>

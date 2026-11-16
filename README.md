@@ -17,6 +17,8 @@
 3. [Wazuh và tương quan firewall](wazuh/README.md)
 4. [Cảnh báo Telegram](wazuh/telegram/README.md)
 5. [Kết quả nghiệm thu trên VM chung](infra/demo.md)
+6. [Đóng gói Docker](docker/README.md)
+7. [Kiểm toán bảo mật](audit/README.md)
 
 ## Bắt đầu
 

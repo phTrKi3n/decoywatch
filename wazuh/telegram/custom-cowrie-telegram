@@ -9,40 +9,117 @@ import time
 import urllib.request
 
 CONFIG = "/var/ossec/etc/cowrie-telegram.json"
-EVENTS = {"100110": "cowrie.login.success", "100120": "lab.firewall.scan"}
+VN_TZ = dt.timezone(dt.timedelta(hours=7))
+EVENTS = {
+    "100110": ("cowrie.login.success",),
+    "100112": ("cowrie.login.failed",),
+    "100115": ("cowrie.command.input", "cowrie.session.file_download"),
+    "100120": ("lab.firewall.scan",),
+}
+MITRE = {
+    "100110": "T1078 / T1021.004 (SSH Login)",
+    "100112": "T1110.001 (SSH Brute-Force)",
+    "100115": "T1059.004 / T1105 (Post-Exploitation)",
+    "100120": "T1046 (Port Scan)",
+}
+ACTIONS = {
+    "cowrie.command.input": "Thực thi lệnh shell",
+    "cowrie.session.file_download": "Tải tệp vào bẫy",
+}
+ADVICE = {
+    "100110": "Đối chiếu phiên trên Wazuh Dashboard và kiểm tra nguồn kết nối",
+    "100112": "Kiểm tra nguồn dò mật khẩu và rà soát quy tắc chặn trên nftables",
+    "100115": "Cô lập/giám sát phiên hậu khai thác trên Cowrie và Dashboard",
+    "100120": "Đối chiếu log LAB_WAN_BLOCK và chặn nguồn nếu ngoài phạm vi lab",
+}
+
+
+def parse_ip(value):
+    if not isinstance(value, str):
+        raise ValueError("invalid ip type")
+    return ipaddress.ip_address(value)
+
+
+def parse_level(rule):
+    raw_level = rule.get("level", 7)
+    if isinstance(raw_level, bool) or not re.fullmatch(r"[0-9]{1,2}", str(raw_level)):
+        raise ValueError("invalid rule level")
+    level = int(raw_level)
+    if not 1 <= level <= 16:
+        raise ValueError("invalid rule level")
+    return level
 
 
 def message(alert):
     rule = alert["rule"]
     data = alert["data"]
     rule_id = str(rule["id"])
-    if rule_id not in EVENTS or data["eventid"] != EVENTS[rule_id]:
+    event_id = data["eventid"]
+    if rule_id not in EVENTS or event_id not in EVENTS[rule_id]:
         raise ValueError("unexpected event")
     label = rule["description"]
     if not isinstance(label, str) or not 0 < len(label) <= 120 or not label.isprintable():
         raise ValueError("invalid label")
-    stamp = dt.datetime.fromisoformat(data["timestamp"])
+    level = parse_level(rule)
+    agent = alert.get("agent")
+    sensor = "cowrie-wazuh-lab"
+    if isinstance(agent, dict) and "name" in agent:
+        sensor = agent["name"]
+    if not isinstance(sensor, str) or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", sensor):
+        raise ValueError("invalid sensor name")
+    raw_ts = data["timestamp"]
+    if not isinstance(raw_ts, str):
+        raise ValueError("invalid timestamp")
+    stamp = dt.datetime.fromisoformat(raw_ts)
     if stamp.utcoffset() is None:
         raise ValueError("missing timezone")
-    stamp = stamp.astimezone(dt.timezone.utc).isoformat()
-    source = ipaddress.ip_address(data["src_ip"])
-    result = f"{label}\nUTC: {stamp}\nNguồn: {source}"
-    if rule_id == "100110":
-        key = data["session"]
-        if data["protocol"] != "ssh" or not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", key):
-            raise ValueError("invalid SSH session")
-        return key, result + f"\nPhiên: {key}"
+    utc_dt = stamp.astimezone(dt.timezone.utc)
+    vn_dt = utc_dt.astimezone(VN_TZ)
+    source = parse_ip(data["src_ip"])
 
-    target = ipaddress.ip_address(data["dest_ip"])
-    port_count = str(data["port_count"])
+    prefix = "[MẪU KIỂM THỬ] " if data.get("fixture") in (True, "true", "True") else ""
+    lines = [
+        f"{prefix}[SIEM SOC] Mức {level} | Rule #{rule_id}",
+        label,
+        f"MITRE: {MITRE[rule_id]}",
+        f"Sensor: {sensor}",
+        f"UTC: {utc_dt.isoformat()}",
+        f"VN: {vn_dt.strftime('%Y-%m-%d %H:%M:%S+07:00')}",
+    ]
+
+    if rule_id in ("100110", "100112", "100115"):
+        key = data["session"]
+        if not isinstance(key, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", key):
+            raise ValueError("invalid SSH session")
+        if rule_id in ("100110", "100112"):
+            if data.get("protocol") != "ssh":
+                raise ValueError("invalid SSH protocol")
+            lines.append(f"Nguồn: {source} -> cowrie-ssh:2222")
+        else:
+            lines.append(f"Nguồn: {source} -> cowrie-ssh")
+            lines.append(f"Hành vi: {ACTIONS[event_id]}")
+        lines.append(f"Phiên: {key}")
+        lines.append(f"Khuyến nghị: {ADVICE[rule_id]}")
+        return key, "\n".join(lines)
+
+    target = parse_ip(data["dest_ip"])
+    raw_port_count = data["port_count"]
+    if isinstance(raw_port_count, bool):
+        raise ValueError("invalid port count")
+    port_count = str(raw_port_count)
     key = data["event_id"]
     if not re.fullmatch(r"[0-9]{1,5}", port_count) or not 5 <= int(port_count) <= 65535:
         raise ValueError("invalid port count")
-    if not re.fullmatch(r"[a-f0-9]{32}", key):
+    if not isinstance(key, str) or not re.fullmatch(r"[a-f0-9]{32}", key):
         raise ValueError("invalid firewall event")
-    if data.get("fixture") in (True, "true", "True"):
-        result = "[MẪU KIỂM THỬ] " + result
-    return key, result + f"\nĐích: {target}\nSố cổng: {int(port_count)}\nID: {key}"
+    lines.extend([
+        f"Nguồn: {source}",
+        f"Đích: {target}",
+        f"Số cổng: {int(port_count)}",
+        f"ID: {key}",
+        f"Khuyến nghị: {ADVICE[rule_id]}",
+    ])
+    return key, "\n".join(lines)
 
 
 def send(token, chat, content):

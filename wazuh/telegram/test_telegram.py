@@ -10,10 +10,16 @@ from unittest.mock import Mock, patch
 
 MODULE = Path(__file__).with_name("custom-cowrie-telegram")
 SAMPLES = [
-    {"rule": {"id": "100110", "description": "Cowrie SSH"}, "data": {
+    {"rule": {"id": "100110", "description": "Cowrie SSH", "level": 7}, "data": {
         "eventid": "cowrie.login.success", "protocol": "ssh", "timestamp": "2026-01-01T07:00:00+07:00",
         "src_ip": "192.0.2.10", "session": "fixture-ssh", "password": "private-value"}},
-    {"rule": {"id": "100120", "description": "Firewall"}, "data": {
+    {"rule": {"id": "100112", "description": "SSH Brute Force", "level": 10}, "data": {
+        "eventid": "cowrie.login.failed", "protocol": "ssh", "timestamp": "2026-01-01T00:00:02Z",
+        "src_ip": "192.0.2.10", "session": "fixture-brute", "password": "private-password"}},
+    {"rule": {"id": "100115", "description": "Post Exploitation", "level": 9}, "data": {
+        "eventid": "cowrie.command.input", "timestamp": "2026-01-01T00:00:04Z",
+        "src_ip": "192.0.2.10", "session": "fixture-cmd", "input": "cat /etc/shadow"}},
+    {"rule": {"id": "100120", "description": "Firewall", "level": 7}, "data": {
         "eventid": "lab.firewall.scan", "timestamp": "2026-01-01T00:00:00Z", "src_ip": "192.0.2.25",
         "dest_ip": "192.0.2.20", "port_count": "5", "event_id": "0" * 32, "fixture": "true"}},
 ]
@@ -27,24 +33,51 @@ class TelegramTests(unittest.TestCase):
             cls.script = runpy.run_path(str(MODULE))
 
     def test_format(self):
-        for alert, field in zip(SAMPLES, ("session", "event_id")):
-            with self.subTest(field=field):
+        for alert, field in zip(SAMPLES, ("session", "session", "session", "event_id")):
+            with self.subTest(rule=alert["rule"]["id"]):
                 key, message = self.script["message"](alert)
                 self.assertEqual(key, alert["data"][field])
-                self.assertIn("00:00:00+00:00", message)
+                self.assertIn("[SIEM SOC]", message)
+                self.assertIn(f"Rule #{alert['rule']['id']}", message)
+                self.assertIn("MITRE:", message)
+                self.assertIn("00:00:", message)
+                self.assertIn("+07:00", message)
                 self.assertNotIn("private-value", message)
+                self.assertNotIn("private-password", message)
+                self.assertNotIn("/etc/shadow", message)
                 self.assertEqual(message.startswith("[MẪU KIỂM THỬ]"), field == "event_id")
+
+    def test_post_exploitation_actions_and_hides_url(self):
+        dl_alert = {
+            "rule": {"id": "100115", "description": "File Download", "level": 9},
+            "data": {
+                "eventid": "cowrie.session.file_download",
+                "timestamp": "2026-01-01T00:00:05Z",
+                "src_ip": "192.0.2.10",
+                "session": "fixture-dl",
+                "url": "http://198.51.100.1/secret-payload.sh",
+            },
+        }
+        key, msg = self.script["message"](dl_alert)
+        self.assertEqual(key, "fixture-dl")
+        self.assertIn("Hành vi: Tải tệp vào bẫy", msg)
+        self.assertNotIn("secret-payload.sh", msg)
 
     def test_reject_invalid_fields(self):
         cases = [
             (0, "rule", "id", "99999"), (0, "rule", "description", "x" * 121),
-            (0, "rule", "description", "a\nb"), (0, "data", "src_ip", "invalid"),
-            (0, "data", "protocol", "telnet"), (0, "data", "timestamp", "2026-01-01T00:00:00"),
-            (1, "data", "port_count", "4"), (1, "data", "port_count", 5.5),
-            (1, "data", "event_id", "bad"), (1, "data", "dest_ip", None),
+            (0, "rule", "description", "a\nb"), (0, "rule", "level", True),
+            (0, "data", "src_ip", "invalid"), (0, "data", "src_ip", True),
+            (0, "data", "src_ip", 2130706433), (0, "data", "protocol", "telnet"),
+            (0, "data", "timestamp", "2026-01-01T00:00:00"),
+            (1, "data", "protocol", "telnet"),
+            (2, "data", "eventid", "cowrie.session.closed"),
+            (3, "data", "port_count", "4"), (3, "data", "port_count", 5.5),
+            (3, "data", "port_count", True), (3, "data", "dest_ip", 3232235777),
+            (3, "data", "event_id", "bad"), (3, "data", "dest_ip", None),
         ]
         for index, section, key, value in cases:
-            with self.subTest(key=key, value=value):
+            with self.subTest(index=index, key=key, value=value):
                 alert = copy.deepcopy(SAMPLES[index])
                 alert[section][key] = value
                 with self.assertRaises((TypeError, ValueError)):

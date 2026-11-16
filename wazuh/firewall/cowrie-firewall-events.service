@@ -8,6 +8,18 @@ ExecStart=/usr/bin/python3 /usr/local/lib/cowrie-lab/firewall.py
 StandardOutput=append:/var/log/cowrie-lab/firewall.json
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateNetwork=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/cowrie-lab
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
 Restart=on-failure
 
 [Install]

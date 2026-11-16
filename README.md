@@ -19,6 +19,7 @@
 5. [Kết quả nghiệm thu trên VM chung](infra/demo.md)
 6. [Đóng gói Docker](docker/README.md)
 7. [Kiểm toán bảo mật](audit/README.md)
+8. [Giao diện Web Enterprise SOC](ui/README.md)
 
 ## Bắt đầu
 

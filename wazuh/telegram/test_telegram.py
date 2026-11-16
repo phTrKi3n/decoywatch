@@ -37,13 +37,12 @@ class TelegramTests(unittest.TestCase):
             with self.subTest(rule=alert["rule"]["id"]):
                 key, message = self.script["message"](alert)
                 self.assertEqual(key, alert["data"][field])
+                self.assertIn("<pre>", message)
                 self.assertIn("<blockquote>", message)
-                self.assertIn("<b>", message)
+                self.assertIn("<b>WAZUH SIEM</b>", message)
                 self.assertIn("<code>", message)
-                self.assertIn("├─", message)
-                self.assertIn("└─", message)
-                self.assertIn(f"#{alert['rule']['id']}", message)
-                self.assertIn("MITRE ATT&amp;CK:", message)
+                self.assertIn(f"RULE #{alert['rule']['id']}", message)
+                self.assertIn("MITRE", message)
                 self.assertIn("00:00:", message)
                 self.assertIn("+07:00", message)
                 self.assertNotIn("private-value", message)
@@ -71,7 +70,7 @@ class TelegramTests(unittest.TestCase):
         }
         key, msg = self.script["message"](dl_alert)
         self.assertEqual(key, "fixture-dl")
-        self.assertIn("Tải tệp vào bẫy", msg)
+        self.assertIn("Payload Download Attempt", msg)
         self.assertNotIn("secret-payload.sh", msg)
 
     def test_reject_invalid_fields(self):

@@ -17,27 +17,27 @@ EVENTS = {
     "100115": ("cowrie.command.input", "cowrie.session.file_download"),
     "100120": ("lab.firewall.scan",),
 }
-HEADERS = {
-    "100110": "🚨 <b>CẢNH BÁO XÂM NHẬP HONEYPOT — WAZUH SIEM</b>",
-    "100112": "🔥 <b>CẢNH BÁO TẤN CÔNG VÉT CẠN — WAZUH SIEM</b>",
-    "100115": "☣️ <b>CẢNH BÁO HẬU KHAI THÁC — WAZUH SIEM</b>",
-    "100120": "📡 <b>CẢNH BÁO DÒ QUÉT MẠNG — WAZUH SIEM</b>",
+CLASSES = {
+    "100110": "SSH Honeypot Login",
+    "100112": "SSH Brute-Force",
+    "100115": "Post-Exploitation",
+    "100120": "WAN Port Scan",
 }
 MITRE = {
-    "100110": "T1078 / T1021.004 (SSH Login)",
-    "100112": "T1110.001 (SSH Brute-Force)",
-    "100115": "T1059.004 / T1105 (Post-Exploitation)",
-    "100120": "T1046 (Port Scan)",
+    "100110": "T1078 / T1021.004",
+    "100112": "T1110.001",
+    "100115": "T1059.004 / T1105",
+    "100120": "T1046",
 }
 ACTIONS = {
-    "cowrie.command.input": "Thực thi lệnh shell",
-    "cowrie.session.file_download": "Tải tệp vào bẫy",
+    "cowrie.command.input": "Shell Command Execution",
+    "cowrie.session.file_download": "Payload Download Attempt",
 }
 ADVICE = {
-    "100110": "Đối chiếu phiên trên Wazuh Dashboard và kiểm tra nguồn kết nối",
-    "100112": "Kiểm tra nguồn dò mật khẩu và rà soát quy tắc chặn trên nftables",
-    "100115": "Cô lập/giám sát phiên hậu khai thác trên Cowrie và Dashboard",
-    "100120": "Đối chiếu log LAB_WAN_BLOCK và chặn nguồn nếu ngoài phạm vi lab",
+    "100110": "Đối chiếu phiên trên Wazuh Dashboard và kiểm tra nguồn kết nối.",
+    "100112": "Kiểm tra nguồn dò mật khẩu và rà soát quy tắc chặn trên nftables.",
+    "100115": "Cô lập/giám sát phiên hậu khai thác trên Cowrie và Dashboard.",
+    "100120": "Đối chiếu log LAB_WAN_BLOCK và chặn nguồn nếu ngoài phạm vi lab.",
 }
 
 
@@ -57,16 +57,20 @@ def parse_level(rule):
     return level
 
 
-def severity_badge(level):
+def priority_label(level):
     if level >= 9:
-        return f"🔴 <b>MỨC ĐỘ:</b> <code>NGHIÊM TRỌNG (Level {level}/16)</code>"
+        return f"P1 CRITICAL (L{level})"
     if level >= 7:
-        return f"🟠 <b>MỨC ĐỘ:</b> <code>CAO (Level {level}/16)</code>"
-    return f"🟡 <b>MỨC ĐỘ:</b> <code>TRUNG BÌNH (Level {level}/16)</code>"
+        return f"P2 HIGH (L{level})"
+    return f"P3 MEDIUM (L{level})"
 
 
 def esc(value):
     return html.escape(str(value), quote=True)
+
+
+def row(name, value):
+    return f"{name:<10}{esc(value)}"
 
 
 def message(alert):
@@ -96,22 +100,11 @@ def message(alert):
     vn_dt = utc_dt.astimezone(VN_TZ)
     source = parse_ip(data["src_ip"])
 
-    prefix = "[MẪU KIỂM THỬ] " if data.get("fixture") in (True, "true", "True") else ""
-    summary = "\n".join([
-        severity_badge(level),
-        f"📌 <b>Sự kiện:</b> {esc(label)}",
-        f"🎯 <b>MITRE ATT&amp;CK:</b> <code>{esc(MITRE[rule_id])}</code>",
-    ])
-    sections = [
-        f"{prefix}{HEADERS[rule_id]}",
-        f"<blockquote>{summary}</blockquote>",
-    ]
-
-    details = [
-        "🔎 <b>CHI TIẾT KỸ THUẬT</b>",
-        f"├─ 🖥 <b>Sensor:</b> <code>{esc(sensor)}</code>",
-        f"├─ 🛡 <b>Rule ID:</b> <code>#{esc(rule_id)}</code>",
-        f"├─ 🌐 <b>Nguồn:</b> <code>{esc(source)}</code>",
+    rows = [
+        row("CLASS", CLASSES[rule_id]),
+        row("MITRE", MITRE[rule_id]),
+        row("SENSOR", sensor),
+        row("SOURCE", source),
     ]
 
     if rule_id in ("100110", "100112", "100115"):
@@ -121,12 +114,12 @@ def message(alert):
         if rule_id in ("100110", "100112"):
             if data.get("protocol") != "ssh":
                 raise ValueError("invalid SSH protocol")
-            details.append("├─ 🎯 <b>Đích:</b> <code>cowrie-ssh:2222</code>")
+            rows.append(row("TARGET", "cowrie-ssh:2222 (ssh)"))
         else:
-            details.append("├─ 🎯 <b>Đích:</b> <code>cowrie-ssh</code>")
-            details.append(f"├─ ⚡ <b>Hành vi:</b> <code>{esc(ACTIONS[event_id])}</code>")
-            details.append("├─ 🔒 <b>Bảo mật:</b> <i>Đã ẩn nội dung lệnh/tệp nhạy cảm</i>")
-        details.append(f"└─ 🔑 <b>Phiên:</b> <code>{esc(key)}</code>")
+            rows.append(row("TARGET", "cowrie-ssh"))
+            rows.append(row("ACTION", ACTIONS[event_id]))
+            rows.append(row("SECURITY", "Redacted command/URL payload"))
+        rows.append(row("SESSION", key))
     else:
         target = parse_ip(data["dest_ip"])
         raw_port_count = data["port_count"]
@@ -138,23 +131,26 @@ def message(alert):
             raise ValueError("invalid port count")
         if not isinstance(key, str) or not re.fullmatch(r"[a-f0-9]{32}", key):
             raise ValueError("invalid firewall event")
-        details.extend([
-            f"├─ 🎯 <b>Đích:</b> <code>{esc(target)}</code>",
-            f"├─ 📊 <b>Số cổng:</b> <code>{int(port_count)} cổng phân biệt / 30s</code>",
-            f"└─ 🆔 <b>ID:</b> <code>{esc(key)}</code>",
+        rows.extend([
+            row("TARGET", target),
+            row("PORTS", f"{int(port_count)} distinct / 30s"),
+            row("EVENT ID", key),
         ])
 
-    times = [
-        "🕒 <b>THỜI GIAN GHI NHẬN</b>",
-        f"├─ <b>Giờ VN:</b> <code>{vn_dt.strftime('%Y-%m-%d %H:%M:%S+07:00')}</code>",
-        f"└─ <b>UTC:</b> <code>{esc(utc_dt.isoformat())}</code>",
-    ]
-    sections.extend([
-        "\n".join(details),
-        "\n".join(times),
-        f"<blockquote>💡 <b>Khuyến nghị SOC:</b> {esc(ADVICE[rule_id])} | <b>Dashboard:</b> <code>https://192.168.100.20</code></blockquote>",
+    rows.extend([
+        row("TIME VN", vn_dt.strftime("%Y-%m-%d %H:%M:%S +07:00")),
+        row("TIME UTC", utc_dt.isoformat()),
     ])
-    return key, "\n\n".join(sections)
+
+    prefix = "[MẪU KIỂM THỬ] " if data.get("fixture") in (True, "true", "True") else ""
+    header = (
+        f"{prefix}<b>WAZUH SIEM</b> · <code>{esc(priority_label(level))}</code> · <code>RULE #{esc(rule_id)}</code>\n"
+        f"<b>{esc(label)}</b>"
+    )
+    table = "<pre>" + "\n".join(rows) + "</pre>"
+    copy_bar = f"<b>Copy:</b> <code>{esc(source)}</code> · <code>{esc(key)}</code> · <code>https://192.168.100.20</code>"
+    runbook = f"<blockquote><b>Runbook:</b> {esc(ADVICE[rule_id])}</blockquote>"
+    return key, f"{header}\n\n{table}\n{copy_bar}\n{runbook}"
 
 
 def send(token, chat, content):

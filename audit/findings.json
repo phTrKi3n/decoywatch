@@ -94,7 +94,7 @@
       {
         "kind": "entrypoint",
         "file": "wazuh/telegram/custom-cowrie-telegram",
-        "line": 72,
+        "line": 76,
         "scope": "message",
         "description": "Alert JSON payload is loaded and passed into message(alert) with data[\"src_ip\"] and data[\"dest_ip\"]."
       },
@@ -108,7 +108,7 @@
       {
         "kind": "sink",
         "file": "wazuh/telegram/custom-cowrie-telegram",
-        "line": 141,
+        "line": 150,
         "scope": "message",
         "description": "Coerced IP address string is embedded into the HTML Telegram alert card sent to Bot API."
       }

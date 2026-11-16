@@ -1,6 +1,6 @@
 # Triển khai hệ thống bẫy Honeypot thế hệ mới kết hợp Wazuh SIEM & cảnh báo tấn công Real-time qua Telegram
 
-**Trạng thái** — Bản nháp local 14/11/2026, chờ chủ repo duyệt trước lần push đầu. [README](../../../README.md) · [Quy tắc cho agent](../../../AGENTS.md).
+**Trạng thái** — Chủ lab chốt một VM với cách ly Cowrie bằng systemd và nftables. Xem [cấu hình đã triển khai](../../../infra/README.md) và [kết quả nghiệm thu](../../../infra/demo.md). [README](../../../README.md) · [Quy tắc cho agent](../../../AGENTS.md).
 
 ## Mục tiêu và phạm vi
 
@@ -12,14 +12,14 @@ WAN mô phỏng là mạng thử nghiệm giữa Windows và VM. Bản demo quan
 
 | Thành phần | Thiết lập dự kiến |
 |---|---|
-| Windows host | Máy khách thử nghiệm trên VMnet Host-only. Adapter này dùng `192.168.100.10/24`, để trống gateway. |
-| Ubuntu Server 24.04 LTS | **4 vCPU, 10 GiB RAM, 70 GB đĩa động**. Card Host-only dùng `192.168.100.20/24`. Card NAT dùng gateway mặc định và DNS cho Ubuntu. Xác nhận subnet không trùng mạng nhà, VPN hoặc NAT. |
+| Windows host | Máy khách thử nghiệm trên VMnet Host-only. Adapter này dùng `192.168.100.1/24`, để trống gateway. |
+| Ubuntu Server 24.04 LTS | **4 vCPU, 8 GiB RAM, 70 GB đĩa động**. Card Host-only dùng `192.168.100.20/24`. Card NAT dùng gateway mặc định và DNS cho Ubuntu. Xác nhận subnet không trùng mạng nhà, VPN hoặc NAT. |
 | Ubuntu firewall | Dùng nftables làm firewall máy chủ, chặn mặc định inbound, giới hạn dịch vụ theo interface. Cowrie TCP `2222` phục vụ phía Host-only. Ghi log kết nối TCP mới bị chặn tới IP Host-only, gồm interface, nguồn, đích và cổng đích. Tách ngoại lệ Dashboard chỉ cho Windows quản trị. |
 | Cowrie | Cài trực tiếp, phiên bản cố định, chạy shell giả lập bằng tài khoản dịch vụ riêng. Dùng UID riêng không có quyền quản trị. Trong nftables, áp chính sách output theo UID socket (`meta skuid`) cho IPv4 và IPv6. Chỉ cho UID này trả lời phiên TCP Cowrie đã được phép qua card Host-only, ở chiều reply và từ cổng dịch vụ. Chặn kết nối mới do UID này khởi tạo, kể cả qua NAT và loopback. Quy tắc giới hạn UID phải có hiệu lực trước mọi luật output cho phép rộng. |
 | Wazuh | Manager, Indexer và Dashboard trên cùng VM. Manager đọc file log cục bộ qua `localfile`. Dashboard truy cập từ Windows quản trị. API và Indexer chỉ phục vụ nội bộ VM. |
 | Telegram | Wazuh Integrator gọi script qua HTTPS. Token và chat ID trong file cấu hình cục bộ chỉ tài khoản vận hành được đọc. |
 
-Giữ inbound trên NAT ở mặc định chặn, không mở VMware NAT port-forward hoặc bridge vào mạng vật lý. Tắt định tuyến giữa hai NIC. Với IPv6, áp và kiểm chính sách tương đương hoặc dùng lab IPv4. Cowrie và Wazuh dùng chung OS, nên kiểm rõ Cowrie không đọc được bí mật bot hay sửa được log firewall và rule Wazuh. Wazuh Quickstart khuyến nghị 8 GiB RAM cho bộ trung tâm. Mức 10 GiB là dự toán ban đầu cho cả VM. Chỉ thử 12 GiB nếu Windows còn đủ RAM khi chạy cùng các ứng dụng demo. Chốt sau khi kiểm RAM khả dụng, paging và độ ổn định.
+Giữ inbound trên NAT ở mặc định chặn, không mở VMware NAT port-forward hoặc bridge vào mạng vật lý. Tắt định tuyến giữa hai NIC. Với IPv6, áp và kiểm chính sách tương đương hoặc dùng lab IPv4. Cowrie và Wazuh dùng chung kernel. Cowrie chạy với sandbox systemd và quy tắc nftables theo UID. Kiểm rõ Cowrie không đọc được bí mật bot hay sửa được log firewall và rule Wazuh. Wazuh Quickstart khuyến nghị 8 GiB RAM cho bộ trung tâm. Mức 10 GiB là dự toán ban đầu cho cả VM. Chỉ thử 12 GiB nếu Windows còn đủ RAM khi chạy cùng các ứng dụng demo. VM triển khai hiện tại dùng 8 GiB. Xem phiên bản và mức RAM đo được trong [bảng cấu hình](../../../infra/versions.md).
 
 ## Giao diện dữ liệu và cảnh báo
 
@@ -47,11 +47,11 @@ Mỗi task có một chủ sở hữu, một phiên agent chỉnh sửa tại m�
 
 ## Checklist nghiệm thu
 
-- [ ] **P00.** Ghi quyết định đã chốt là **một VM Ubuntu**. Xác nhận với yêu cầu môn học rằng bản demo dùng firewall trên VM và WAN mô phỏng. Ghi RAM, subnet và phiên bản đã chọn. Nếu môn học yêu cầu router phân vùng riêng, cập nhật kiến trúc trước khi triển khai.
+- [x] **P00.** Ghi quyết định đã chốt là **một VM Ubuntu**. Xác nhận với yêu cầu môn học rằng bản demo dùng firewall trên VM và WAN mô phỏng. Ghi RAM, subnet và phiên bản đã chọn. Nếu môn học yêu cầu router phân vùng riêng, cập nhật kiến trúc trước khi triển khai.
 
-- [ ] **I01.** Windows vào được Cowrie qua Host-only. VM tới được Bot API qua NAT. Windows giữ default route vật lý. Kiểm cổng quản trị trên NAT bị chặn và một phép thử kết nối đã định trước sinh log block trên Host-only.
-- [ ] **C01.** Cowrie tạo JSON có mã phiên. Bàn giao fixture dương và âm. Kiểm bằng tài khoản Cowrie rằng một kết nối mới tới dịch vụ kiểm thử và đường ra NAT bị chặn. Xác nhận phiên SSH vào Cowrie vẫn trả lời, Wazuh vẫn gửi được Telegram và tài khoản Cowrie không đọc được bí mật bot. Lặp kiểm sau khi khởi động lại VM.
-- [ ] **W01.** Manager đọc được log Cowrie và firewall thật. Dùng một bản ghi nftables đã làm sạch để kiểm decoder trên phiên bản Wazuh đã chọn. Nếu decoder hiện có thiếu interface, action, IP nguồn/đích hoặc cổng đích, chuẩn hóa các trường trong bộ gom hoặc viết decoder nhỏ trước khi kiểm ngưỡng. Kiểm rule Cowrie bằng `wazuh-logtest`. Với firewall, kiểm một block, 4 cổng phân biệt, 5 cổng phân biệt, cổng lặp xen kẽ, IP nguồn hoặc đích khác, interface khác, và ngoài 30 giây. Kiểm một sự kiện trong cửa sổ chống lặp. Dùng fixture để kiểm ngưỡng và dữ liệu trực tiếp có kiểm soát để xác nhận đường thu log. Đối chiếu hai alert thật với fixture trước khi ghép.
+- [x] **I01.** Windows vào được Cowrie qua Host-only. VM tới được Bot API qua NAT. Windows giữ default route vật lý. Kiểm cổng quản trị trên NAT bị chặn và một phép thử kết nối đã định trước sinh log block trên Host-only.
+- [x] **C01.** Cowrie tạo JSON có mã phiên. Bàn giao fixture dương và âm. Kiểm bằng tài khoản Cowrie rằng một kết nối mới tới dịch vụ kiểm thử và đường ra NAT bị chặn. Xác nhận phiên SSH vào Cowrie vẫn trả lời, Wazuh vẫn gửi được Telegram và tài khoản Cowrie không đọc được bí mật bot. Lặp kiểm sau khi khởi động lại VM.
+- [x] **W01.** Manager đọc log Cowrie và sự kiện JSON do bộ gom tạo. Xác nhận nftables ghi bản ghi thật trên Host-only, rồi kiểm chuẩn hóa và ngưỡng bằng mẫu. Dùng một bản ghi nftables đã làm sạch để kiểm decoder trên phiên bản Wazuh đã chọn. Nếu decoder hiện có thiếu interface, action, IP nguồn/đích hoặc cổng đích, chuẩn hóa các trường trong bộ gom hoặc viết decoder nhỏ trước khi kiểm ngưỡng. Kiểm rule Cowrie bằng `wazuh-logtest`. Với firewall, kiểm một block, 4 cổng phân biệt, 5 cổng phân biệt, cổng lặp xen kẽ, IP nguồn hoặc đích khác, interface khác, và ngoài 30 giây. Kiểm một sự kiện trong cửa sổ chống lặp. Dùng fixture để kiểm ngưỡng và dữ liệu trực tiếp có kiểm soát để xác nhận đường thu log. Đối chiếu alert của phiên Cowrie thật và alert do mẫu firewall đi qua Wazuh với fixture trước khi ghép.
 - [ ] **W02.** Chỉ nhận hai rule đã chốt. Kiểm loại alert lạ, nhãn quá dài hoặc nhiều dòng, thiếu trường, IP sai, dữ liệu nhạy cảm dư, timeout và lỗi API. Ghi mã phiên hoặc ID, UTC trước và sau khi API trả `ok`, và thời gian gọi API đo bằng đồng hồ đơn điệu. Giữ token ngoài log, fixture và repo.
 - [ ] **D01.** Chạy một phiên SSH đã định trước để nối cùng mã phiên qua Cowrie, Dashboard và Telegram. Với firewall, dùng phép kiểm chính sách có kiểm soát, chỉ tới IP Host-only của VM do nhóm quản lý. Đối chiếu block thật và kiểm tương quan bằng bộ log mẫu trên đầu vào thử nghiệm. Ghi rõ nguồn và phần đã kiểm trực tiếp. Đo ba lượt mỗi loại từ sự kiện đủ điều kiện đến khi Bot API trả `ok`. Nếu kiểm tốc độ, so Internet của Windows khi lab tắt và khi lab đang demo, đồng thời ghi tình trạng RAM và CPU. Kết quả đó phản ánh ảnh hưởng của lab lên host.
 

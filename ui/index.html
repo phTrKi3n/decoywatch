@@ -834,6 +834,41 @@
           </div>
         </div>
       </div>
+
+      <div class="frame" style="margin-top: 16px;">
+        <div class="frame-header">
+          <h2 class="frame-title">Đối chiếu Tài nguyên &amp; Mạng Host Windows (VM ON vs VM OFF)</h2>
+        </div>
+        <div class="frame-panel table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Trạng thái Lab</th>
+                <th>RAM trống Host (Tổng 15,73 GiB)</th>
+                <th>CPU Host</th>
+                <th>HTTPS <code>api.telegram.org</code> (3 lượt)</th>
+                <th>Trung bình &amp; Kết luận</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-ok">VM ON (Cowrie-Wazuh-Lab)</span></td>
+                <td><code>2,45 GiB</code></td>
+                <td><code>22%</code></td>
+                <td><code>0,661 s · 0,629 s · 0,818 s</code></td>
+                <td><code>0,703 s</code> (VM chiếm ~4,34 GiB RAM thực trên host)</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-neutral">VM OFF (Total running VMs: 0)</span></td>
+                <td><code>6,79 GiB</code></td>
+                <td><code>20%</code></td>
+                <td><code>0,697 s · 0,641 s · 0,704 s</code></td>
+                <td><code>0,681 s</code> (Chênh lệch ~22 ms, không nghẽn mạng)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- TAB 3: DOCKER & CLOUDFLARE SECURITY AUDIT -->

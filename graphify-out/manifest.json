@@ -1,0 +1,143 @@
+{
+  "audit/coverage-ledger.json": {
+    "mtime": 1794818222.5263278,
+    "seen": 1794820064.8405783,
+    "ast_hash": "4215df7845ff90ff03b8d6c88a91c7c7",
+    "semantic_hash": "4215df7845ff90ff03b8d6c88a91c7c7",
+    "ast_empty": true
+  },
+  "audit/findings.json": {
+    "mtime": 1794818704.5255754,
+    "seen": 1794820064.8405833,
+    "ast_hash": "bb2acf7db78ff3ff58291b89a779a418",
+    "semantic_hash": "bb2acf7db78ff3ff58291b89a779a418",
+    "ast_empty": true
+  },
+  "docker/compose.yaml": {
+    "mtime": 1794818222.529437,
+    "seen": 1794820064.8405943,
+    "ast_hash": "b0b0ab55e68a2b4cd3e8e8cfcc4b76f5",
+    "semantic_hash": "b0b0ab55e68a2b4cd3e8e8cfcc4b76f5"
+  },
+  "docker/entrypoint.py": {
+    "mtime": 1794818222.529437,
+    "seen": 1794820064.840731,
+    "ast_hash": "6a7978e51e5ac9c73c253675d8b4094d",
+    "semantic_hash": "6a7978e51e5ac9c73c253675d8b4094d"
+  },
+  "infra/90-cowrie-lab.yaml": {
+    "mtime": 1794818222.5304377,
+    "seen": 1794820064.8408132,
+    "ast_hash": "4f387376097a6d4aefe6d1d15d2d2df4",
+    "semantic_hash": "4f387376097a6d4aefe6d1d15d2d2df4"
+  },
+  "wazuh/firewall/firewall.py": {
+    "mtime": 1794818222.534466,
+    "seen": 1794820064.8408802,
+    "ast_hash": "80be367bc9ae3ebe03a0473a6374e3a2",
+    "semantic_hash": "80be367bc9ae3ebe03a0473a6374e3a2"
+  },
+  "wazuh/telegram/config.example.json": {
+    "mtime": 1794818222.5370033,
+    "seen": 1794820064.8409417,
+    "ast_hash": "ca50bac8da38989c556d41dd704667bb",
+    "semantic_hash": "ca50bac8da38989c556d41dd704667bb",
+    "ast_empty": true
+  },
+  "wazuh/telegram/custom-cowrie-telegram": {
+    "mtime": 1794818704.5274723,
+    "seen": 1794820064.8409426,
+    "ast_hash": "bc8d375ba5daa960f141b70491ea6950",
+    "semantic_hash": "bc8d375ba5daa960f141b70491ea6950"
+  },
+  "wazuh/telegram/test_telegram.py": {
+    "mtime": 1794818704.528477,
+    "seen": 1794820064.8410034,
+    "ast_hash": "436bc786ebafc6e8b29874231d833e0f",
+    "semantic_hash": "436bc786ebafc6e8b29874231d833e0f"
+  },
+  "AGENTS.md": {
+    "mtime": 1794818222.525268,
+    "seen": 1794820064.8410654,
+    "ast_hash": "d8da3749c440a05d3ab45d462a3292f6",
+    "semantic_hash": "d8da3749c440a05d3ab45d462a3292f6"
+  },
+  "CONTRIBUTING.md": {
+    "mtime": 1794818222.525268,
+    "seen": 1794820064.8411236,
+    "ast_hash": "6c4a76f1e0291726acb9e34a4ea43bea",
+    "semantic_hash": "6c4a76f1e0291726acb9e34a4ea43bea"
+  },
+  "README.md": {
+    "mtime": 1794818704.5245721,
+    "seen": 1794820064.8411791,
+    "ast_hash": "343a4b7f6e596dfdf0bc620b56c4ad68",
+    "semantic_hash": "343a4b7f6e596dfdf0bc620b56c4ad68"
+  },
+  "audit/README.md": {
+    "mtime": 1794818222.5263278,
+    "seen": 1794820064.8412347,
+    "ast_hash": "a5a73d5620d01dacb7338ccdd077cabb",
+    "semantic_hash": "a5a73d5620d01dacb7338ccdd077cabb"
+  },
+  "cowrie/README.md": {
+    "mtime": 1794818222.5273688,
+    "seen": 1794820064.8412917,
+    "ast_hash": "aeff2b346f903651603b8be7879499ba",
+    "semantic_hash": "aeff2b346f903651603b8be7879499ba"
+  },
+  "docker/README.md": {
+    "mtime": 1794818222.5284264,
+    "seen": 1794820064.8413494,
+    "ast_hash": "96f305370e81dc5dc78c2e4a3faffcb5",
+    "semantic_hash": "96f305370e81dc5dc78c2e4a3faffcb5"
+  },
+  "docs/superpowers/plans/2026-11-12-honeypot-wazuh-telegram.md": {
+    "mtime": 1794818222.5304377,
+    "seen": 1794820064.8414054,
+    "ast_hash": "cbd493f4a88b06df919e9881346b869d",
+    "semantic_hash": "cbd493f4a88b06df919e9881346b869d"
+  },
+  "infra/README.md": {
+    "mtime": 1794818222.5314376,
+    "seen": 1794820064.8414686,
+    "ast_hash": "2f50ce3b3cebaa248332baf210b0b9f6",
+    "semantic_hash": "2f50ce3b3cebaa248332baf210b0b9f6"
+  },
+  "infra/demo.md": {
+    "mtime": 1794819930.2222846,
+    "seen": 1794820064.8415241,
+    "ast_hash": "716ceae4c22ebe9927c6faccab9a1a16",
+    "semantic_hash": "716ceae4c22ebe9927c6faccab9a1a16"
+  },
+  "infra/versions.md": {
+    "mtime": 1794818222.5314376,
+    "seen": 1794820064.8415794,
+    "ast_hash": "8b1d86cabad0f186d6043293824c8311",
+    "semantic_hash": "8b1d86cabad0f186d6043293824c8311"
+  },
+  "ui/README.md": {
+    "mtime": 1794818704.5260797,
+    "seen": 1794820064.8416448,
+    "ast_hash": "df0a99346832f62c8f613bf97fd6bffe",
+    "semantic_hash": "df0a99346832f62c8f613bf97fd6bffe"
+  },
+  "ui/index.html": {
+    "mtime": 1794819931.9186227,
+    "seen": 1794820064.8417034,
+    "ast_hash": "05c16bba4f9184c5cc728af4caaa4f0c",
+    "semantic_hash": "05c16bba4f9184c5cc728af4caaa4f0c"
+  },
+  "wazuh/README.md": {
+    "mtime": 1794818222.5329473,
+    "seen": 1794820064.8417635,
+    "ast_hash": "ca84c6844aec009afa76b3bfb9f538e6",
+    "semantic_hash": "ca84c6844aec009afa76b3bfb9f538e6"
+  },
+  "wazuh/telegram/README.md": {
+    "mtime": 1794818704.5274723,
+    "seen": 1794820064.8418229,
+    "ast_hash": "a393e7339f1c562f7cdf4605b26f8e11",
+    "semantic_hash": "a393e7339f1c562f7cdf4605b26f8e11"
+  }
+}

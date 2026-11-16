@@ -37,15 +37,26 @@ class TelegramTests(unittest.TestCase):
             with self.subTest(rule=alert["rule"]["id"]):
                 key, message = self.script["message"](alert)
                 self.assertEqual(key, alert["data"][field])
-                self.assertIn("[SIEM SOC]", message)
-                self.assertIn(f"Rule #{alert['rule']['id']}", message)
-                self.assertIn("MITRE:", message)
+                self.assertIn("<blockquote>", message)
+                self.assertIn("<b>", message)
+                self.assertIn("<code>", message)
+                self.assertIn("├─", message)
+                self.assertIn("└─", message)
+                self.assertIn(f"#{alert['rule']['id']}", message)
+                self.assertIn("MITRE ATT&amp;CK:", message)
                 self.assertIn("00:00:", message)
                 self.assertIn("+07:00", message)
                 self.assertNotIn("private-value", message)
                 self.assertNotIn("private-password", message)
                 self.assertNotIn("/etc/shadow", message)
                 self.assertEqual(message.startswith("[MẪU KIỂM THỬ]"), field == "event_id")
+
+    def test_html_escaping_prevents_tag_injection(self):
+        alert = copy.deepcopy(SAMPLES[0])
+        alert["rule"]["description"] = '<script>alert(1)</script> & "x"'
+        _, message = self.script["message"](alert)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;x&quot;", message)
+        self.assertNotIn("<script>", message)
 
     def test_post_exploitation_actions_and_hides_url(self):
         dl_alert = {
@@ -60,7 +71,7 @@ class TelegramTests(unittest.TestCase):
         }
         key, msg = self.script["message"](dl_alert)
         self.assertEqual(key, "fixture-dl")
-        self.assertIn("Hành vi: Tải tệp vào bẫy", msg)
+        self.assertIn("Tải tệp vào bẫy", msg)
         self.assertNotIn("secret-payload.sh", msg)
 
     def test_reject_invalid_fields(self):
@@ -89,10 +100,18 @@ class TelegramTests(unittest.TestCase):
 
     def test_api_request(self):
         with patch("urllib.request.urlopen", return_value=io.BytesIO(b'{"ok":true}')) as response:
-            self.script["send"]("123:dummy", "-123", "Test <text>")
+            self.script["send"]("123:dummy", "-123", "Test &lt;text&gt;")
         request = response.call_args.args[0]
         self.assertTrue(request.full_url.startswith("https://api.telegram.org/"))
-        self.assertEqual(json.loads(request.data), {"chat_id": "-123", "text": "Test <text>"})
+        self.assertEqual(
+            json.loads(request.data),
+            {
+                "chat_id": "-123",
+                "text": "Test &lt;text&gt;",
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            },
+        )
         self.assertEqual(response.call_args.kwargs["timeout"], 10)
 
     def test_success_log_contains_only_metrics(self):

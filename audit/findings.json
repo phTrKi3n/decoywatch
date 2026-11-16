@@ -94,34 +94,34 @@
       {
         "kind": "entrypoint",
         "file": "wazuh/telegram/custom-cowrie-telegram",
-        "line": 53,
+        "line": 72,
         "scope": "message",
         "description": "Alert JSON payload is loaded and passed into message(alert) with data[\"src_ip\"] and data[\"dest_ip\"]."
       },
       {
         "kind": "propagation",
         "file": "wazuh/telegram/custom-cowrie-telegram",
-        "line": 37,
+        "line": 44,
         "scope": "parse_ip",
         "description": "Source and destination IP fields flow to parse_ip(value), which previously called ipaddress.ip_address(value) directly."
       },
       {
         "kind": "sink",
         "file": "wazuh/telegram/custom-cowrie-telegram",
-        "line": 115,
+        "line": 141,
         "scope": "message",
-        "description": "Coerced IP address string is embedded into the Telegram alert text sent to Bot API."
+        "description": "Coerced IP address string is embedded into the HTML Telegram alert card sent to Bot API."
       }
     ],
     "evidence": [
       {
         "file": "wazuh/telegram/custom-cowrie-telegram",
-        "line": 37,
-        "description": "Commit c3d614d lines 28 and 36 called ipaddress.ip_address(...) without isinstance(..., str); remediated parse_ip() at lines 37-40 enforces isinstance(value, str)."
+        "line": 44,
+        "description": "Commit c3d614d lines 28 and 36 called ipaddress.ip_address(...) without isinstance(..., str); remediated parse_ip() at lines 44-47 enforces isinstance(value, str)."
       },
       {
         "file": "wazuh/telegram/test_telegram.py",
-        "line": 66,
+        "line": 77,
         "description": "test_reject_invalid_fields verifies that src_ip=True, src_ip=2130706433, and dest_ip=3232235777 raise ValueError."
       }
     ],
@@ -140,7 +140,7 @@
         "Run python -c \"import ipaddress; print(ipaddress.ip_address(True), ipaddress.ip_address(3232235777))\" to reproduce Python's implicit int/bool coercion.",
         "Run python wazuh/telegram/test_telegram.py -v to verify the remediated parse_ip() check rejects boolean and integer IP inputs."
       ],
-      "observed_result": "Before the fix, ipaddress.ip_address(True) returned 0.0.0.1 and ipaddress.ip_address(3232235777) returned 192.168.1.1; after adding parse_ip() with isinstance(value, str), all 6 unit tests in test_telegram.py pass and reject non-string IPs."
+      "observed_result": "Before the fix, ipaddress.ip_address(True) returned 0.0.0.1 and ipaddress.ip_address(3232235777) returned 192.168.1.1; after adding parse_ip() with isinstance(value, str), all 7 unit tests in test_telegram.py pass and reject non-string IPs."
     },
     "remediation": {
       "strategy": "Require isinstance(value, str) in parse_ip() before invoking ipaddress.ip_address(), and reject bool values for rule.level and data.port_count.",

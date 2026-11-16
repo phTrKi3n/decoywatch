@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import datetime as dt
+import html
 import ipaddress
 import json
 import re
@@ -15,6 +16,12 @@ EVENTS = {
     "100112": ("cowrie.login.failed",),
     "100115": ("cowrie.command.input", "cowrie.session.file_download"),
     "100120": ("lab.firewall.scan",),
+}
+HEADERS = {
+    "100110": "🚨 <b>CẢNH BÁO XÂM NHẬP HONEYPOT — WAZUH SIEM</b>",
+    "100112": "🔥 <b>CẢNH BÁO TẤN CÔNG VÉT CẠN — WAZUH SIEM</b>",
+    "100115": "☣️ <b>CẢNH BÁO HẬU KHAI THÁC — WAZUH SIEM</b>",
+    "100120": "📡 <b>CẢNH BÁO DÒ QUÉT MẠNG — WAZUH SIEM</b>",
 }
 MITRE = {
     "100110": "T1078 / T1021.004 (SSH Login)",
@@ -50,6 +57,18 @@ def parse_level(rule):
     return level
 
 
+def severity_badge(level):
+    if level >= 9:
+        return f"🔴 <b>MỨC ĐỘ:</b> <code>NGHIÊM TRỌNG (Level {level}/16)</code>"
+    if level >= 7:
+        return f"🟠 <b>MỨC ĐỘ:</b> <code>CAO (Level {level}/16)</code>"
+    return f"🟡 <b>MỨC ĐỘ:</b> <code>TRUNG BÌNH (Level {level}/16)</code>"
+
+
+def esc(value):
+    return html.escape(str(value), quote=True)
+
+
 def message(alert):
     rule = alert["rule"]
     data = alert["data"]
@@ -78,13 +97,21 @@ def message(alert):
     source = parse_ip(data["src_ip"])
 
     prefix = "[MẪU KIỂM THỬ] " if data.get("fixture") in (True, "true", "True") else ""
-    lines = [
-        f"{prefix}[SIEM SOC] Mức {level} | Rule #{rule_id}",
-        label,
-        f"MITRE: {MITRE[rule_id]}",
-        f"Sensor: {sensor}",
-        f"UTC: {utc_dt.isoformat()}",
-        f"VN: {vn_dt.strftime('%Y-%m-%d %H:%M:%S+07:00')}",
+    summary = "\n".join([
+        severity_badge(level),
+        f"📌 <b>Sự kiện:</b> {esc(label)}",
+        f"🎯 <b>MITRE ATT&amp;CK:</b> <code>{esc(MITRE[rule_id])}</code>",
+    ])
+    sections = [
+        f"{prefix}{HEADERS[rule_id]}",
+        f"<blockquote>{summary}</blockquote>",
+    ]
+
+    details = [
+        "🔎 <b>CHI TIẾT KỸ THUẬT</b>",
+        f"├─ 🖥 <b>Sensor:</b> <code>{esc(sensor)}</code>",
+        f"├─ 🛡 <b>Rule ID:</b> <code>#{esc(rule_id)}</code>",
+        f"├─ 🌐 <b>Nguồn:</b> <code>{esc(source)}</code>",
     ]
 
     if rule_id in ("100110", "100112", "100115"):
@@ -94,38 +121,51 @@ def message(alert):
         if rule_id in ("100110", "100112"):
             if data.get("protocol") != "ssh":
                 raise ValueError("invalid SSH protocol")
-            lines.append(f"Nguồn: {source} -> cowrie-ssh:2222")
+            details.append("├─ 🎯 <b>Đích:</b> <code>cowrie-ssh:2222</code>")
         else:
-            lines.append(f"Nguồn: {source} -> cowrie-ssh")
-            lines.append(f"Hành vi: {ACTIONS[event_id]}")
-        lines.append(f"Phiên: {key}")
-        lines.append(f"Khuyến nghị: {ADVICE[rule_id]}")
-        return key, "\n".join(lines)
+            details.append("├─ 🎯 <b>Đích:</b> <code>cowrie-ssh</code>")
+            details.append(f"├─ ⚡ <b>Hành vi:</b> <code>{esc(ACTIONS[event_id])}</code>")
+            details.append("├─ 🔒 <b>Bảo mật:</b> <i>Đã ẩn nội dung lệnh/tệp nhạy cảm</i>")
+        details.append(f"└─ 🔑 <b>Phiên:</b> <code>{esc(key)}</code>")
+    else:
+        target = parse_ip(data["dest_ip"])
+        raw_port_count = data["port_count"]
+        if isinstance(raw_port_count, bool):
+            raise ValueError("invalid port count")
+        port_count = str(raw_port_count)
+        key = data["event_id"]
+        if not re.fullmatch(r"[0-9]{1,5}", port_count) or not 5 <= int(port_count) <= 65535:
+            raise ValueError("invalid port count")
+        if not isinstance(key, str) or not re.fullmatch(r"[a-f0-9]{32}", key):
+            raise ValueError("invalid firewall event")
+        details.extend([
+            f"├─ 🎯 <b>Đích:</b> <code>{esc(target)}</code>",
+            f"├─ 📊 <b>Số cổng:</b> <code>{int(port_count)} cổng phân biệt / 30s</code>",
+            f"└─ 🆔 <b>ID:</b> <code>{esc(key)}</code>",
+        ])
 
-    target = parse_ip(data["dest_ip"])
-    raw_port_count = data["port_count"]
-    if isinstance(raw_port_count, bool):
-        raise ValueError("invalid port count")
-    port_count = str(raw_port_count)
-    key = data["event_id"]
-    if not re.fullmatch(r"[0-9]{1,5}", port_count) or not 5 <= int(port_count) <= 65535:
-        raise ValueError("invalid port count")
-    if not isinstance(key, str) or not re.fullmatch(r"[a-f0-9]{32}", key):
-        raise ValueError("invalid firewall event")
-    lines.extend([
-        f"Nguồn: {source}",
-        f"Đích: {target}",
-        f"Số cổng: {int(port_count)}",
-        f"ID: {key}",
-        f"Khuyến nghị: {ADVICE[rule_id]}",
+    times = [
+        "🕒 <b>THỜI GIAN GHI NHẬN</b>",
+        f"├─ <b>Giờ VN:</b> <code>{vn_dt.strftime('%Y-%m-%d %H:%M:%S+07:00')}</code>",
+        f"└─ <b>UTC:</b> <code>{esc(utc_dt.isoformat())}</code>",
+    ]
+    sections.extend([
+        "\n".join(details),
+        "\n".join(times),
+        f"<blockquote>💡 <b>Khuyến nghị SOC:</b> {esc(ADVICE[rule_id])} | <b>Dashboard:</b> <code>https://192.168.100.20</code></blockquote>",
     ])
-    return key, "\n".join(lines)
+    return key, "\n\n".join(sections)
 
 
 def send(token, chat, content):
     if not re.fullmatch(r"[0-9]+:[a-zA-Z0-9_-]+", token) or not re.fullmatch(r"-?[0-9]+", chat):
         raise ValueError("invalid bot configuration")
-    payload = json.dumps({"chat_id": chat, "text": content}).encode("utf-8")
+    payload = json.dumps({
+        "chat_id": chat,
+        "text": content,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }).encode("utf-8")
     request = urllib.request.Request(
         f"https://api.telegram.org/bot{token}/sendMessage",
         data=payload,

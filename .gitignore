@@ -35,10 +35,6 @@ __pycache__/
 .venv/
 .DS_Store
 Thumbs.db
-graphify-out/cache/
-graphify-out/.graphify_*
-graphify-out/.needs_update
 *.local.json
 *.local.txt
 userdb.txt
-graphify-out/

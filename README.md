@@ -1,8 +1,8 @@
-# Cowrie–Wazuh Telegram Toolkit
+# DecoyWatch
 
 Bẫy SSH, phân tích sự kiện bằng Wazuh SIEM và cảnh báo qua Telegram trên một VM Ubuntu Server.
 
-[Tải v0.1.1](https://github.com/phTrKi3n/honeypot-wazuh-telegram/releases/tag/v0.1.1) · [Cài đặt](#cài-đặt) · [Nghiệm thu](#nghiệm-thu) · [Xử lý sự cố](#xử-lý-sự-cố) · [MIT](LICENSE)
+[Tải v0.1.2](https://github.com/phTrKi3n/decoywatch/releases/tag/v0.1.2) · [Cài đặt](#cài-đặt) · [Nghiệm thu](#nghiệm-thu) · [Xử lý sự cố](#xử-lý-sự-cố) · [MIT](LICENSE)
 
 **Phạm vi:** lab phòng thủ một VM Ubuntu Server 24.04, có mạng Host-only mô phỏng WAN và card NAT ra Internet. Cowrie và SIEM cùng dùng kernel; cấu hình này dành cho thực hành trong mạng lab do bạn sở hữu.
 
@@ -21,13 +21,13 @@ Cowrie ghi nhận tương tác SSH. Wazuh phân tích log từ bẫy và bộ t�
 | `100115` | Lệnh hoặc hoạt động tải tệp trong shell giả lập |
 | `100120` | Ít nhất 5 cổng đích khác nhau bị chặn từ cùng nguồn trong 30 giây |
 
-Bot hiện gửi cảnh báo tự động. Thư mục `ui/` là trang minh họa với dữ liệu cố định. Phần dò nhiều cổng theo dõi card lab đã cấu hình; các kết nối tới mạng khác của máy chủ không thuộc luồng này.
+Bot gửi cảnh báo tự động. Phần dò nhiều cổng theo dõi card lab đã cấu hình; các kết nối tới mạng khác của máy chủ không thuộc luồng này.
 
 ## Kiến trúc
 
 <img src="assets/architecture.svg" alt="Máy khách Host-only qua nftables tới Cowrie hoặc bộ tương quan firewall; hai nguồn JSON vào Wazuh Manager, lưu tại Indexer để Dashboard tra cứu và gửi Telegram qua NAT" width="600">
 
-Hai nguồn phát hiện cùng đi vào Wazuh: log JSON của Cowrie và sự kiện được tổng hợp từ `LAB_WAN_BLOCK`. Manager áp quy tắc, chuyển cảnh báo cho Indexer và gọi tích hợp Telegram. Mũi tên chỉ chiều dữ liệu; đường viền nét đứt là ranh giới VM. Các quan hệ đã được đối chiếu trong source và xuất bằng Graphify; hình SVG được bố trí lại để đọc trên GitHub.
+Hai nguồn phát hiện cùng đi vào Wazuh: log JSON của Cowrie và sự kiện được tổng hợp từ `LAB_WAN_BLOCK`. Manager áp quy tắc, chuyển cảnh báo cho Indexer và gọi tích hợp Telegram. Mũi tên chỉ chiều dữ liệu; đường viền nét đứt là ranh giới VM.
 
 ## Trước khi bắt đầu
 
@@ -72,12 +72,12 @@ sudo apt-get update
 sudo apt-get install -y curl ca-certificates python3-venv nftables openssl
 ```
 
-**Archive:** tải `cowrie-wazuh-telegram-v0.1.1.tar.gz` và `SHA256SUMS` từ [Release v0.1.1](https://github.com/phTrKi3n/honeypot-wazuh-telegram/releases/tag/v0.1.1) vào cùng thư mục.
+**Archive:** tải `decoywatch-v0.1.2.tar.gz` và `SHA256SUMS` từ [Release v0.1.2](https://github.com/phTrKi3n/decoywatch/releases/tag/v0.1.2) vào cùng thư mục.
 
 ```sh
 sha256sum --ignore-missing -c SHA256SUMS
-tar -xzf cowrie-wazuh-telegram-v0.1.1.tar.gz
-cd cowrie-wazuh-telegram-v0.1.1
+tar -xzf decoywatch-v0.1.2.tar.gz
+cd decoywatch-v0.1.2
 ```
 
 Chỉ giải nén và dùng gói khi lệnh checksum trả `OK` cho đúng archive vừa tải.
@@ -87,8 +87,8 @@ Chỉ giải nén và dùng gói khi lệnh checksum trả `OK` cho đúng archi
 
 ```sh
 sudo apt-get install -y git
-git clone --branch v0.1.1 --depth 1 https://github.com/phTrKi3n/honeypot-wazuh-telegram.git
-cd honeypot-wazuh-telegram
+git clone --branch v0.1.2 --depth 1 https://github.com/phTrKi3n/decoywatch.git
+cd decoywatch
 ```
 
 </details>
@@ -374,7 +374,7 @@ Container dùng UID thấp, filesystem chỉ đọc, bỏ capabilities và tắt
 - Khi Telegram trả HTTP 429, notifier chỉ thử lại trong giới hạn cho phép của `retry_after`: tối đa 3 lần gửi, mỗi lần chờ tối đa 5 giây. Lỗi timeout/5xx không tự thử lại để tránh gửi trùng khi kết quả chưa rõ. Đây không phải hàng đợi bền vững; sự cố mạng hoặc hết giới hạn vẫn có thể làm lần gửi thất bại. Xem lại cảnh báo trong Wazuh.
 - Token, mật khẩu, khóa riêng, log thô và ảnh đĩa VM phải nằm ngoài repo. Chỉ đăng dữ liệu mẫu có nhãn hoặc ảnh đã che thông tin nhạy cảm.
 
-Các thư mục tùy chỉnh là `infra/`, `cowrie/`, `wazuh/` và `docker/`. Phần `ui/` là demo dữ liệu cố định, không dùng làm bằng chứng hệ thống đang hoạt động.
+Các thư mục tùy chỉnh là `infra/`, `cowrie/`, `wazuh/` và `docker/`.
 
 ## Giấy phép
 

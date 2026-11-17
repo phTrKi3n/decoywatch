@@ -8,6 +8,8 @@ import sys
 import syslog
 import time
 import urllib.request
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
 
 CONFIG = "/var/ossec/etc/cowrie-telegram.json"
 VN_TZ = dt.timezone(dt.timedelta(hours=7))
@@ -73,7 +75,7 @@ def row(name, value):
     return f"{name:<10}{esc(value)}"
 
 
-def message(alert):
+def message(alert, dashboard_url=None):
     rule = alert["rule"]
     data = alert["data"]
     rule_id = str(rule["id"])
@@ -148,7 +150,19 @@ def message(alert):
         f"<b>{esc(label)}</b>"
     )
     table = "<pre>" + "\n".join(rows) + "</pre>"
-    copy_bar = f"<b>Copy:</b> <code>{esc(source)}</code> · <code>{esc(key)}</code> · <code>https://192.168.100.20</code>"
+    copy_items = [esc(source), esc(key)]
+    if dashboard_url is not None:
+        if (not isinstance(dashboard_url, str) or not 0 < len(dashboard_url) <= 512
+                or not dashboard_url.isprintable() or any(c.isspace() for c in dashboard_url)
+                or "?" in dashboard_url or "#" in dashboard_url):
+            raise ValueError("invalid dashboard URL")
+        target = urlsplit(dashboard_url)
+        if (target.scheme != "https" or not target.hostname or target.username is not None
+                or target.password is not None or target.query or target.fragment
+                or target.port == 0):
+            raise ValueError("invalid dashboard URL")
+        copy_items.append(esc(dashboard_url))
+    copy_bar = "<b>Copy:</b> " + " · ".join(f"<code>{item}</code>" for item in copy_items)
     runbook = f"<blockquote><b>Runbook:</b> {esc(ADVICE[rule_id])}</blockquote>"
     return key, f"{header}\n\n{table}\n{copy_bar}\n{runbook}"
 
@@ -167,17 +181,36 @@ def send(token, chat, content):
         data=payload,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
-        if json.load(response).get("ok") is not True:
-            raise ValueError("Bot API rejected alert")
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                if json.load(response).get("ok") is not True:
+                    raise ValueError("Bot API rejected alert")
+            return
+        except HTTPError as error:
+            if error.code != 429 or attempt == 2:
+                error.close()
+                raise
+            try:
+                failure = json.loads(error.read(8192))
+            finally:
+                error.close()
+            if (not isinstance(failure, dict) or failure.get("ok") is not False
+                    or not isinstance(failure.get("parameters"), dict)):
+                raise ValueError("invalid rate-limit response")
+            delay = failure.get("parameters", {}).get("retry_after")
+            if type(delay) is not int or not 1 <= delay <= 5:
+                raise ValueError("unsupported rate-limit delay")
+            time.sleep(delay)
 
 
 def main():
     try:
         with open(sys.argv[1], encoding="utf-8") as file:
-            key, content = message(json.load(file))
+            alert = json.load(file)
         with open(CONFIG, encoding="utf-8-sig") as file:
             config = json.load(file)
+        key, content = message(alert, config.get("dashboard_url"))
         started = dt.datetime.now(dt.timezone.utc)
         timer = time.monotonic()
         send(config["bot_token"], str(config["chat_id"]), content)

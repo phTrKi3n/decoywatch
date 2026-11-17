@@ -16,18 +16,30 @@ def load_firewall(path: Path):
 
 
 def run_self_test(fixtures_dir: Path, app_dir: Path, send_telegram: bool, config_path: Path) -> int:
+    nft_log = fixtures_dir / "nftables-block.log"
+    alerts_file = fixtures_dir / "telegram-alerts.ndjson"
+    fixture_text = {}
+    for file in (nft_log, alerts_file):
+        text = file.read_text(encoding="utf-8")
+        if not text.strip():
+            raise ValueError(f"empty fixture: {file.name}")
+        fixture_text[file.name] = text
+    alerts = [json.loads(line) for line in fixture_text[alerts_file.name].splitlines() if line.strip()]
+    if {str(alert["rule"]["id"]) for alert in alerts} != {"100110", "100112", "100115", "100120"}:
+        raise ValueError("fixtures must cover all four alert rules")
+    cfg = json.loads(config_path.read_text(encoding="utf-8-sig")) if send_telegram else None
     fw = load_firewall(app_dir / "firewall.py")
     tg = runpy.run_path(str(app_dir / "custom-cowrie-telegram"))
 
     fw.check()
 
-    nft_log = fixtures_dir / "nftables-block.log"
-    if nft_log.exists():
-        state = collections.OrderedDict()
-        lines = nft_log.read_text(encoding="utf-8").splitlines()
-        emitted = [fw.event(line, idx, state) for idx, line in enumerate(lines)]
-        emitted = [e for e in emitted if e is not None]
-        print(f"FIXTURE nftables-block.log: lines={len(lines)} correlated_alerts={len(emitted)}")
+    state = collections.OrderedDict()
+    lines = fixture_text[nft_log.name].splitlines()
+    emitted = [fw.event(line, idx, state) for idx, line in enumerate(lines)]
+    emitted = [e for e in emitted if e is not None]
+    if not state:
+        raise ValueError("firewall fixture contains no eligible event")
+    print(f"FIXTURE nftables-block.log: lines={len(lines)} correlated_alerts={len(emitted)}")
 
     state = collections.OrderedDict()
     scan_alert = None
@@ -48,22 +60,14 @@ def run_self_test(fixtures_dir: Path, app_dir: Path, send_telegram: bool, config
     print(formatted_scan)
 
     formatted_messages = []
-    alerts_file = fixtures_dir / "telegram-alerts.ndjson"
-    if alerts_file.exists():
-        for raw_line in alerts_file.read_text(encoding="utf-8").splitlines():
-            if not raw_line.strip():
-                continue
-            alert = json.loads(raw_line)
-            key, text = tg["message"](alert)
-            formatted_messages.append((alert["rule"]["id"], key, text))
-            print(f"--- SOC ALERT rule={alert['rule']['id']} key={key} ---")
-            print(text)
+    for alert in alerts:
+        alert["data"]["fixture"] = True
+        key, text = tg["message"](alert, cfg.get("dashboard_url") if cfg else None)
+        formatted_messages.append((alert["rule"]["id"], key, text))
+        print(f"--- SOC ALERT rule={alert['rule']['id']} key={key} ---")
+        print(text)
 
     if send_telegram:
-        if not config_path.is_file():
-            print(f"SKIP send: config not mounted at {config_path}")
-            return 0
-        cfg = json.loads(config_path.read_text(encoding="utf-8-sig"))
         for rule_id, key, text in formatted_messages:
             tg["send"](cfg["bot_token"], str(cfg["chat_id"]), text)
             print(f"SENT rule={rule_id} key={key} ok=true")

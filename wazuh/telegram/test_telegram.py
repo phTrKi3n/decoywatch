@@ -113,6 +113,75 @@ class TelegramTests(unittest.TestCase):
         )
         self.assertEqual(response.call_args.kwargs["timeout"], 10)
 
+    def test_dashboard_url_is_configurable_and_optional(self):
+        _, message = self.script["message"](SAMPLES[0], "https://10.20.30.40:8443/wazuh")
+        self.assertIn("https://10.20.30.40:8443/wazuh", message)
+        self.assertNotIn("192.168.100.20", message)
+        _, message = self.script["message"](SAMPLES[0])
+        self.assertNotIn("https://", message)
+
+    def test_reject_invalid_dashboard_url(self):
+        for value in (True, "", "http://example.test", "https://u:p@example.test", "https://",
+                      "https://example.test/#x", "https://example.test/?token=private",
+                      "https://example.test/\nsecret", "https://example.test:99999", "https://example.test:0",
+                      "https://example.test/?", "https://example.test/#"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.script["message"](SAMPLES[0], value)
+
+    def test_main_reads_dashboard_url_from_config(self):
+        config = '{"bot_token":"123:dummy","chat_id":"1","dashboard_url":"https://10.20.30.40"}'
+        with patch("urllib.request.urlopen", return_value=io.BytesIO(b'{"ok":true}')) as response, \
+                patch("sys.argv", [str(MODULE), "fixture.json"]), \
+                patch("builtins.open", side_effect=[io.StringIO(json.dumps(SAMPLES[0])), io.StringIO(config)]):
+            self.assertEqual(self.script["main"](), 0)
+        self.assertIn("https://10.20.30.40", json.loads(response.call_args.args[0].data)["text"])
+
+    def test_rate_limit_retries_only_confirmed_rejection(self):
+        limited = HTTPError("https://example.test", 429, "rate limit", {},
+                            io.BytesIO(b'{"ok":false,"parameters":{"retry_after":2}}'))
+        with patch("urllib.request.urlopen", side_effect=[limited, io.BytesIO(b'{"ok":true}')]) as request, \
+                patch("time.sleep") as sleep:
+            self.script["send"]("123:dummy", "1", "fixture")
+        self.assertEqual(request.call_count, 2)
+        sleep.assert_called_once_with(2)
+
+    def test_rate_limit_retry_is_bounded(self):
+        errors = [HTTPError("https://example.test", 429, "rate limit", {},
+                            io.BytesIO(b'{"ok":false,"parameters":{"retry_after":1}}')) for _ in range(3)]
+        with patch("urllib.request.urlopen", side_effect=errors) as request, patch("time.sleep") as sleep:
+            with self.assertRaises(HTTPError):
+                self.script["send"]("123:dummy", "1", "fixture")
+        self.assertEqual(request.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_rate_limit_rejects_unbounded_or_invalid_delay(self):
+        for delay in (0, 6, True, "2", 1.5, None):
+            limited = HTTPError("https://example.test", 429, "rate limit", {},
+                                io.BytesIO(json.dumps({"ok": False, "parameters": {"retry_after": delay}}).encode()))
+            with self.subTest(delay=delay), patch("urllib.request.urlopen", side_effect=limited) as request, \
+                    patch("time.sleep") as sleep, self.assertRaises((ValueError, HTTPError)):
+                self.script["send"]("123:dummy", "1", "fixture")
+            self.assertEqual(request.call_count, 1)
+            sleep.assert_not_called()
+
+    def test_invalid_rate_limit_body_fails_without_retry(self):
+        for body in (b'not-json', b'[]', b'{"ok":false,"parameters":[]}', b'{"ok":true}'):
+            error = HTTPError("https://example.test", 429, "rate limit", {}, io.BytesIO(body))
+            with self.subTest(body=body), patch("urllib.request.urlopen", side_effect=error) as request, \
+                    patch("time.sleep") as sleep, self.assertRaises(ValueError):
+                self.script["send"]("123:dummy", "1", "fixture")
+            self.assertEqual(request.call_count, 1)
+            sleep.assert_not_called()
+
+    def test_ambiguous_network_failures_are_not_retried(self):
+        for error in (TimeoutError(), HTTPError("https://example.test", 503, "unavailable", {}, None)):
+            with self.subTest(error=type(error).__name__), \
+                    patch("urllib.request.urlopen", side_effect=error) as request, \
+                    patch("time.sleep") as sleep, self.assertRaises((TimeoutError, HTTPError)):
+                self.script["send"]("123:dummy", "1", "fixture")
+            self.assertEqual(request.call_count, 1)
+            sleep.assert_not_called()
+
     def test_success_log_contains_only_metrics(self):
         with patch("urllib.request.urlopen", return_value=io.BytesIO(b'{"ok":true}')), \
                 patch.object(self.log, "syslog") as log, patch("sys.argv", [str(MODULE), "fixture.json"]), \
